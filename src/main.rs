@@ -27,10 +27,20 @@ fn main() {
     let args = Args::parse();
 
     for wd_entry in WalkDir::new(args.path) {
-        let wd_entry = wd_entry.unwrap();
-        let md = match metadata(&wd_entry.path()) {
-            Err(_) => continue,
+        let wd_entry = match wd_entry {
             Ok(entry) => entry,
+            Err(e) => {
+                println!("Error '{}'", e);
+                continue
+            },
+        };
+
+        let md = match metadata(&wd_entry.path()) {
+            Ok(entry) => entry,
+            Err(e) => {
+                println!("Error '{}'", e);
+                continue
+            },
         };
 
         if md.is_dir() {
