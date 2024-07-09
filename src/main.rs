@@ -26,25 +26,21 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    for wd_entry in WalkDir::new(args.path) {
-        let wd_entry = match wd_entry {
-            Ok(entry) => entry,
-            Err(e) => {
-                println!("Error '{}'", e);
-                continue
-            },
-        };
+    let wd_entry = WalkDir::new(args.path)
+    .into_iter()
+    .filter_map(|e| e.ok());
 
+    wd_entry.for_each(|wd_entry|{
         let md = match metadata(&wd_entry.path()) {
             Ok(entry) => entry,
             Err(e) => {
                 println!("Error '{}'", e);
-                continue
+                return
             },
         };
 
         if md.is_dir() {
-            continue;
+            return;
         }
 
         if args.max_file_size != 0 && md.size() > (args.max_file_size * 1024 * 1024) {
@@ -54,7 +50,7 @@ fn main() {
                     wd_entry.path().to_str().unwrap()
                 );
             }
-            continue;
+            return;
         }
 
         let mut hash = Sha256::new();
@@ -67,5 +63,5 @@ fn main() {
         if args.verbose {
             println!("{} {}", hex_result, wd_entry.path().to_str().unwrap());
         }
-    }
+    });
 }
