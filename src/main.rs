@@ -5,7 +5,7 @@ use std::{
     os::unix::fs::MetadataExt,
     io::Result,
 };
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 /// Simple program to check file integrity
 #[derive(Parser, Debug)]
@@ -30,9 +30,10 @@ async fn main() -> Result<()> {
 
     let wd_entry = WalkDir::new(args.path)
     .into_iter()
-    .filter_map(|e| e.ok());
+    .filter_map(|e| e.ok())
+    .filter_map(check_is_dir);
 
-    wd_entry.for_each(|wd_entry|{
+    wd_entry.for_each(|wd_entry| {
         let md = match metadata(&wd_entry.path()) {
             Ok(entry) => entry,
             Err(e) => {
@@ -40,10 +41,6 @@ async fn main() -> Result<()> {
                 return
             },
         };
-
-        if md.is_dir() {
-            return;
-        }
 
         if args.max_file_size != 0 && md.size() > (args.max_file_size * 1024 * 1024) {
             if args.verbose {
@@ -70,4 +67,20 @@ async fn main() -> Result<()> {
     });
 
     Ok(())
+}
+
+fn check_is_dir(entry: DirEntry) -> Option<DirEntry> {
+    let md = match metadata(&entry.path()) {
+        Ok(entry) => entry,
+        Err(e) => {
+            println!("Error '{}'", e);
+            return None
+        },
+    };
+
+    if md.is_dir() {
+        return None;
+    }
+
+    Some(entry)
 }
