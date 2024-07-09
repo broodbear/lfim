@@ -1,10 +1,9 @@
 use clap::Parser;
-use sha2::{Digest, Sha256};
-use std::{
-    fs::{self},
-    io::Result,
-};
+use lfim::hash::hash;
+use std::io::Result;
 use walkdir::WalkDir;
+
+pub mod lfim;
 
 /// Simple program to check file integrity
 #[derive(Parser, Debug)]
@@ -36,16 +35,18 @@ async fn main() -> Result<()> {
 
     wd_entry.for_each(|wd_entry| {
         tokio::spawn(async move {
-            let mut hash = Sha256::new();
+            let path = wd_entry.path().to_str().unwrap();
 
-            let contents =
-                fs::read(&wd_entry.path()).expect("Should have been able to read the file");
-            hash.update(contents);
-            let result = hash.finalize();
-            let hex_result = hex::encode(result);
+            let file_hash = match hash(path) {
+                Ok(h) => h,
+                Err(e) => {
+                    println!("error, {}", e);
+                    return
+                }
+            };
 
             if args.verbose {
-                println!("{} {}", hex_result, wd_entry.path().to_str().unwrap());
+                println!("{} {}", file_hash, path);
             }
         });
     });
