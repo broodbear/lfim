@@ -3,6 +3,7 @@ use sha2::{Digest, Sha256};
 use std::{
     fs::{self, metadata},
     os::unix::fs::MetadataExt,
+    io::Result,
 };
 use walkdir::WalkDir;
 
@@ -23,7 +24,8 @@ struct Args {
     verbose: bool,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     let wd_entry = WalkDir::new(args.path)
@@ -53,15 +55,19 @@ fn main() {
             return;
         }
 
-        let mut hash = Sha256::new();
+        tokio::spawn(async move {
+            let mut hash = Sha256::new();
 
-        let contents = fs::read(&wd_entry.path()).expect("Should have been able to read the file");
-        hash.update(contents);
-        let result = hash.finalize();
-        let hex_result = hex::encode(result);
+            let contents = fs::read(&wd_entry.path()).expect("Should have been able to read the file");
+            hash.update(contents);
+            let result = hash.finalize();
+            let hex_result = hex::encode(result);
 
-        if args.verbose {
-            println!("{} {}", hex_result, wd_entry.path().to_str().unwrap());
-        }
+            if args.verbose {
+                println!("{} {}", hex_result, wd_entry.path().to_str().unwrap());
+            }
+        });
     });
+
+    Ok(())
 }
